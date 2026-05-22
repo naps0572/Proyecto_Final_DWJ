@@ -1,0 +1,123 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  TECHNICIAN
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_USER
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TicketType {
+  INCIDENT
+  SERVICE_REQUEST
+}
+
+enum TicketImpact {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TicketUrgency {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model User {
+  id                Int       @id @default(autoincrement())
+  name              String
+  email             String    @unique
+  password          String
+  role              Role      @default(USER)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  ticketsCreated    Ticket[]  @relation("TicketsCreated")
+  ticketsAssigned   Ticket[]  @relation("TicketsAssigned")
+  comments          Comment[]
+  auditEvents        TicketAudit[]
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets    Ticket[]
+}
+
+model Ticket {
+  id           Int            @id @default(autoincrement())
+  title        String
+  description  String
+  type         TicketType     @default(INCIDENT)
+  status       TicketStatus   @default(OPEN)
+  priority     TicketPriority @default(MEDIUM)
+  impact       TicketImpact   @default(MEDIUM)
+  urgency      TicketUrgency  @default(MEDIUM)
+  service      String?
+  location     String?
+  slaResponseDueAt DateTime?
+  slaResolveDueAt  DateTime?
+  firstResponseAt  DateTime?
+  resolvedAt       DateTime?
+  closedAt         DateTime?
+  resolutionSummary String?
+  rootCause         String?
+  closureCode       String?
+  escalationReason  String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  creatorId    Int
+  technicianId Int?
+  categoryId   Int
+  creator      User           @relation("TicketsCreated", fields: [creatorId], references: [id])
+  technician   User?          @relation("TicketsAssigned", fields: [technicianId], references: [id])
+  category     Category       @relation(fields: [categoryId], references: [id])
+  comments     Comment[]
+  auditEvents  TicketAudit[]
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  message   String
+  createdAt DateTime @default(now())
+  ticketId  Int
+  userId    Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model TicketAudit {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  actorId   Int
+  action    String
+  fromValue String?
+  toValue   String?
+  note      String?
+  createdAt DateTime @default(now())
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor     User     @relation(fields: [actorId], references: [id])
+}
