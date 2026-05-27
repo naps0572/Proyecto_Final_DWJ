@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import authRoutes from './auth.routes';
 import categoryRoutes from './category.routes';
+import integrationRoutes from './integration.routes';
 import ticketRoutes from './ticket.routes';
 import userRoutes from './user.routes';
 
@@ -12,6 +13,7 @@ router.get('/health', (_req, res) => {
 
 router.use('/auth', authRoutes);
 router.use('/categories', categoryRoutes);
+router.use('/integrations', integrationRoutes);
 router.use('/tickets', ticketRoutes);
 router.use('/users', userRoutes);
 

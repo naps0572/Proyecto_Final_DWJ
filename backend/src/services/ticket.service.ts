@@ -6,8 +6,10 @@ import {
   TicketType,
   TicketUrgency
 } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { prisma } from '../config/prisma';
+import { hashPassword } from '../utils/hash';
 
 const createTicketSchema = z.object({
   title: z.string().min(3),
@@ -37,6 +39,21 @@ const updateTicketSchema = z.object({
 
 const addCommentSchema = z.object({
   message: z.string().min(2)
+});
+
+const botTicketSchema = z.object({
+  requesterName: z.string().trim().min(2).max(120).optional().nullable(),
+  requesterEmail: z.string().trim().email(),
+  requesterPhone: z.string().trim().max(40).optional().nullable(),
+  title: z.string().trim().min(3).max(160),
+  description: z.string().trim().min(5),
+  type: z.nativeEnum(TicketType).default(TicketType.INCIDENT),
+  impact: z.nativeEnum(TicketImpact).default(TicketImpact.MEDIUM),
+  urgency: z.nativeEnum(TicketUrgency).default(TicketUrgency.MEDIUM),
+  categoryName: z.string().trim().min(2).max(80).default('General'),
+  service: z.string().trim().max(80).optional().nullable(),
+  location: z.string().trim().max(80).optional().nullable(),
+  source: z.string().trim().max(80).default('bot-whatsapp-service-desk')
 });
 
 const PRIORITY_MATRIX: Record<TicketImpact, Record<TicketUrgency, TicketPriority>> = {
@@ -159,6 +176,66 @@ export async function createTicket(input: unknown, creatorId: number) {
           action: 'CREATED',
           toValue: priority,
           note: 'Ticket registrado desde el portal de mesa de ayuda'
+        }
+      }
+    },
+    include: {
+      category: true,
+      creator: { select: { id: true, name: true, email: true } }
+    }
+  });
+}
+
+export async function createTicketFromBot(input: unknown) {
+  const data = botTicketSchema.parse(input);
+  const priority = calculatePriority(data.impact, data.urgency);
+  const createdAt = new Date();
+  const sla = calculateSla(priority, createdAt);
+
+  const [creator, category] = await Promise.all([
+    prisma.user.upsert({
+      where: { email: data.requesterEmail },
+      update: {
+        name: data.requesterName || data.requesterEmail
+      },
+      create: {
+        name: data.requesterName || data.requesterEmail,
+        email: data.requesterEmail,
+        password: await hashPassword(`bot-${randomUUID()}`),
+        role: Role.USER
+      }
+    }),
+    prisma.category.upsert({
+      where: { name: data.categoryName },
+      update: {},
+      create: { name: data.categoryName }
+    })
+  ]);
+
+  return prisma.ticket.create({
+    data: {
+      title: data.title,
+      description: [
+        data.description,
+        data.requesterPhone ? `Teléfono WhatsApp: ${data.requesterPhone}` : null
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+      type: data.type,
+      priority,
+      impact: data.impact,
+      urgency: data.urgency,
+      service: data.service || null,
+      location: data.location || null,
+      ...sla,
+      categoryId: category.id,
+      creatorId: creator.id,
+      auditEvents: {
+        create: {
+          actorId: creator.id,
+          action: 'CREATED',
+          toValue: priority,
+          note: `Ticket registrado desde ${data.source}`
         }
       }
     },

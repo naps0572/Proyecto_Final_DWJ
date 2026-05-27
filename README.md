@@ -138,6 +138,7 @@ NODE_ENV=development
 DATABASE_URL="file:./dev.db"
 PORT=4000
 JWT_SECRET="replace_with_a_secret_of_at_least_32_characters"
+SERVICE_BOT_API_KEY="shared_secret_for_whatsapp_bot"
 FRONTEND_URL="http://localhost:5173"
 CORS_ORIGINS="http://localhost:5173"
 JSON_BODY_LIMIT="100kb"
@@ -205,6 +206,14 @@ Puedes desplegar `frontend/dist` en un hosting estático y ejecutar el backend c
 - `POST /api/tickets`
 - `PATCH /api/tickets/:id` solo `TECHNICIAN`
 - `POST /api/tickets/:id/comments`
+
+### Integraciones
+
+- `POST /api/integrations/service-desk-bot/tickets` con header `x-service-bot-key`
+
+Este endpoint permite que `bot-whatsapp-service-desk` cree tickets reales sin usar una
+sesión JWT de usuario. El valor de `SERVICE_BOT_API_KEY` debe coincidir con la variable
+`SERVICE_DESK_API_KEY` configurada en el bot.
 
 ### Usuarios
 

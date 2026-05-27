@@ -14,7 +14,9 @@ const CLIENT_ERROR_MESSAGES = [
   'Usuario no encontrado',
   'El correo ya se encuentra registrado',
   'Credenciales inválidas',
-  'Parámetro id inválido'
+  'Parámetro id inválido',
+  'API key inválida',
+  'Integración de bot no configurada'
 ];
 
 export function errorHandler(
